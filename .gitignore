@@ -1,0 +1,21 @@
+# Local environment
+.env
+.env.local
+.env.*
+!.env.example
+
+# Sensitive local files
+token.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/

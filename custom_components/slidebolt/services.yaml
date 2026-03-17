@@ -1,0 +1,25 @@
+configure:
+  name: Configure
+  description: Configure the Slidebolt bridge transport mode and credentials.
+  fields:
+    mode:
+      name: Mode
+      description: client for HA -> plugin, server for plugin -> HA.
+      required: false
+      selector:
+        select:
+          options:
+            - client
+            - server
+    url:
+      name: URL
+      description: WebSocket URL exposed by the remote side when using client mode.
+      required: false
+      selector:
+        text:
+    access_token:
+      name: Access Token
+      description: HA long-lived token sent during auth when using client mode.
+      required: false
+      selector:
+        text:
