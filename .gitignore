@@ -7,6 +7,11 @@
 # Sensitive local files
 token.txt
 
+# HA dev test instance (set up locally with test-ha.sh)
+testconfig/
+testconfig-baseline-storage/
+testconfig-baseline.db
+
 # Python
 __pycache__/
 *.pyc

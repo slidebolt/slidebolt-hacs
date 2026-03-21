@@ -4,33 +4,34 @@ from __future__ import annotations
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 
+from .const import DOMAIN
 from .entity_base import SlideboltBaseEntity
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    await hass.data["slidebolt"].async_register_platform("fan", async_add_entities)
+async def async_setup_entry(hass, entry, async_add_entities):
+    bridge = hass.data[DOMAIN][entry.entry_id]
+    await bridge.async_register_platform("fan", async_add_entities)
 
 
-class SlideboltFanEntity(SlideboltBaseEntity, FanEntity):
-    _attr_has_entity_name = True
-    _attr_supported_features = FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF | FanEntityFeature.SET_SPEED
-
-    @property
-    def is_on(self):
-        return bool(self.payload.get("state", {}).get("on", False))
+class SlideboltFan(SlideboltBaseEntity, FanEntity):
 
     @property
-    def percentage(self):
-        return self.payload.get("state", {}).get("percentage")
+    def is_on(self) -> bool:
+        return bool(self._state.get("is_on", False))
 
-    async def async_turn_on(self, percentage=None, preset_mode=None, **kwargs):
-        params = {}
-        if percentage is not None:
-            params["percentage"] = percentage
-        await self.bridge.async_send_command(self.unique_id, "turn_on", params)
+    @property
+    def percentage(self) -> int | None:
+        return self._state.get("percentage")
 
-    async def async_turn_off(self, **kwargs):
-        await self.bridge.async_send_command(self.unique_id, "turn_off", {})
+    @property
+    def supported_features(self) -> FanEntityFeature:
+        return FanEntityFeature(self._state.get("supported_features", 0))
 
-    async def async_set_percentage(self, percentage: int):
-        await self.bridge.async_send_command(self.unique_id, "set_percentage", {"percentage": percentage})
+    async def async_turn_on(self, **kwargs) -> None:
+        await self.bridge.async_send_command(self._attr_unique_id, "turn_on", kwargs)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self.bridge.async_send_command(self._attr_unique_id, "turn_off", kwargs)
+
+    async def async_set_percentage(self, percentage: int) -> None:
+        await self.bridge.async_send_command(self._attr_unique_id, "set_percentage", {"percentage": percentage})

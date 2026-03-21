@@ -2,79 +2,62 @@
 
 from __future__ import annotations
 
-from homeassistant.components.light import ColorMode, LightEntity
+from homeassistant.components.light import ColorMode, LightEntity, LightEntityFeature
 
+from .const import DOMAIN
 from .entity_base import SlideboltBaseEntity
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the Slidebolt light platform."""
-    await hass.data["slidebolt"].async_register_platform("light", async_add_entities)
+async def async_setup_entry(hass, entry, async_add_entities):
+    bridge = hass.data[DOMAIN][entry.entry_id]
+    await bridge.async_register_platform("light", async_add_entities)
 
 
-class SlideboltLightEntity(SlideboltBaseEntity, LightEntity):
-    """HA light rendered from plugin-owned contract data."""
-
-    _attr_has_entity_name = True
-    _attr_min_color_temp_kelvin = 2000
-    _attr_max_color_temp_kelvin = 6535
+class SlideboltLight(SlideboltBaseEntity, LightEntity):
 
     @property
-    def is_on(self):
-        return bool(self.payload.get("state", {}).get("on", False))
+    def is_on(self) -> bool:
+        return bool(self._state.get("is_on", False))
 
     @property
-    def brightness(self):
-        brightness = self.payload.get("state", {}).get("brightness")
-        if brightness is None:
+    def brightness(self) -> int | None:
+        return self._state.get("brightness")
+
+    @property
+    def color_mode(self) -> ColorMode | None:
+        mode = self._state.get("color_mode")
+        return ColorMode(mode) if mode else None
+
+    @property
+    def rgb_color(self) -> tuple[int, int, int] | None:
+        rgb = self._state.get("rgb_color")
+        return tuple(rgb) if rgb else None
+
+    @property
+    def color_temp_kelvin(self) -> int | None:
+        return self._state.get("color_temp_kelvin")
+
+    @property
+    def min_color_temp_kelvin(self) -> int | None:
+        return self._state.get("min_color_temp_kelvin")
+
+    @property
+    def max_color_temp_kelvin(self) -> int | None:
+        return self._state.get("max_color_temp_kelvin")
+
+    @property
+    def supported_color_modes(self) -> set[ColorMode] | None:
+        modes = self._state.get("supported_color_modes")
+        if modes is None:
             return None
-        return max(0, min(255, round((int(brightness) / 100) * 255)))
+        return {ColorMode(m) for m in modes}
 
     @property
-    def rgb_color(self):
-        rgb = self.payload.get("state", {}).get("rgb")
-        if not rgb:
-            return None
-        return tuple(rgb)
+    def supported_features(self) -> LightEntityFeature:
+        return LightEntityFeature(self._state.get("supported_features", 0))
 
-    @property
-    def color_temp_kelvin(self):
-        return self.payload.get("state", {}).get("temperature")
+    async def async_turn_on(self, **kwargs) -> None:
+        await self.bridge.async_send_command(self._attr_unique_id, "turn_on", kwargs)
 
-    @property
-    def supported_color_modes(self):
-        features = self.payload.get("features", {})
-        modes = set()
-        if features.get("rgb"):
-            modes.add(ColorMode.RGB)
-        if features.get("temperature"):
-            modes.add(ColorMode.COLOR_TEMP)
-        if not modes and features.get("brightness"):
-            modes.add(ColorMode.BRIGHTNESS)
-        if not modes:
-            modes.add(ColorMode.ONOFF)
-        return modes
-
-    @property
-    def color_mode(self):
-        state = self.payload.get("state", {})
-        if state.get("rgb"):
-            return ColorMode.RGB
-        if state.get("temperature"):
-            return ColorMode.COLOR_TEMP
-        if self.payload.get("features", {}).get("brightness"):
-            return ColorMode.BRIGHTNESS
-        return ColorMode.ONOFF
-
-    async def async_turn_on(self, **kwargs):
-        params = {}
-        if "brightness" in kwargs:
-            params["brightness"] = round((kwargs["brightness"] / 255) * 100)
-        if "rgb_color" in kwargs:
-            params["rgb"] = list(kwargs["rgb_color"])
-        if "color_temp_kelvin" in kwargs:
-            params["temperature"] = kwargs["color_temp_kelvin"]
-        await self.bridge.async_send_command(self.unique_id, "turn_on", params)
-
-    async def async_turn_off(self, **kwargs):
-        await self.bridge.async_send_command(self.unique_id, "turn_off", {})
+    async def async_turn_off(self, **kwargs) -> None:
+        await self.bridge.async_send_command(self._attr_unique_id, "turn_off", kwargs)

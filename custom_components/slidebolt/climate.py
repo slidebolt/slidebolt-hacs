@@ -2,76 +2,58 @@
 
 from __future__ import annotations
 
-from homeassistant.components.climate import ATTR_TEMPERATURE, ClimateEntity
-from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode
-from homeassistant.const import UnitOfTemperature
+from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature, HVACMode
 
+from .const import DOMAIN
 from .entity_base import SlideboltBaseEntity
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    await hass.data["slidebolt"].async_register_platform("climate", async_add_entities)
+async def async_setup_entry(hass, entry, async_add_entities):
+    bridge = hass.data[DOMAIN][entry.entry_id]
+    await bridge.async_register_platform("climate", async_add_entities)
 
 
-class SlideboltClimateEntity(SlideboltBaseEntity, ClimateEntity):
-    _attr_has_entity_name = True
-    _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.AUTO]
-    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+class SlideboltClimate(SlideboltBaseEntity, ClimateEntity):
 
     @property
-    def _temperature_attrs(self):
-        return self.payload.get("attributes", {})
+    def hvac_mode(self) -> HVACMode | None:
+        mode = self._state.get("hvac_mode")
+        return HVACMode(mode) if mode else None
 
     @property
-    def hvac_mode(self):
-        mode = self.payload.get("state", {}).get("hvac_mode", "off")
-        try:
-            return HVACMode(mode)
-        except ValueError:
-            return HVACMode.OFF
+    def hvac_modes(self) -> list[HVACMode]:
+        return [HVACMode(m) for m in self._state.get("hvac_modes", [])]
 
     @property
-    def target_temperature(self):
-        return self.payload.get("state", {}).get("temperature")
+    def current_temperature(self) -> float | None:
+        return self._state.get("current_temperature")
 
     @property
-    def temperature_unit(self):
-        raw = self._temperature_attrs.get("temperature_unit")
-        if raw is None:
-            raw = self.payload.get("state", {}).get("temperature_unit")
-        if raw == "F":
-            return UnitOfTemperature.FAHRENHEIT
-        if raw == "C":
-            return UnitOfTemperature.CELSIUS
-        return UnitOfTemperature.CELSIUS
+    def target_temperature(self) -> float | None:
+        return self._state.get("target_temperature")
 
     @property
-    def target_temperature_step(self):
-        return 1
+    def temperature_unit(self) -> str:
+        return self._state.get("temperature_unit", "°C")
 
     @property
-    def precision(self):
-        return 1.0
+    def target_temperature_step(self) -> float | None:
+        return self._state.get("target_temperature_step")
 
     @property
-    def min_temp(self):
-        if self.temperature_unit == UnitOfTemperature.FAHRENHEIT:
-            return 41
-        return 5
+    def min_temp(self) -> float | None:
+        return self._state.get("min_temp")
 
     @property
-    def max_temp(self):
-        if self.temperature_unit == UnitOfTemperature.FAHRENHEIT:
-            return 95
-        return 35
+    def max_temp(self) -> float | None:
+        return self._state.get("max_temp")
 
-    async def async_set_hvac_mode(self, hvac_mode):
-        await self.bridge.async_send_command(self.unique_id, "set_hvac_mode", {"hvac_mode": str(hvac_mode)})
+    @property
+    def supported_features(self) -> ClimateEntityFeature:
+        return ClimateEntityFeature(self._state.get("supported_features", 0))
 
-    async def async_set_temperature(self, **kwargs):
-        if ATTR_TEMPERATURE in kwargs:
-            await self.bridge.async_send_command(
-                self.unique_id,
-                "set_temperature",
-                {"temperature": round(kwargs[ATTR_TEMPERATURE])},
-            )
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        await self.bridge.async_send_command(self._attr_unique_id, "set_hvac_mode", {"hvac_mode": str(hvac_mode)})
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        await self.bridge.async_send_command(self._attr_unique_id, "set_temperature", kwargs)
