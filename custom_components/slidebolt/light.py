@@ -34,6 +34,11 @@ class SlideboltLight(SlideboltBaseEntity, LightEntity):
         return tuple(rgb) if rgb else None
 
     @property
+    def xy_color(self) -> tuple[float, float] | None:
+        xy = self._state.get("xy_color")
+        return tuple(xy) if xy else None
+
+    @property
     def color_temp_kelvin(self) -> int | None:
         return self._state.get("color_temp_kelvin")
 

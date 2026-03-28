@@ -10,27 +10,26 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import SIGNAL_ENTITY_ADDED, SIGNAL_ENTITY_REMOVED, SIGNAL_ENTITY_UPDATED
+from .const import CONF_CLIENT_ID, SIGNAL_ENTITY_ADDED, SIGNAL_ENTITY_REMOVED, SIGNAL_ENTITY_UPDATED
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_hello(host: str, port: int) -> bool:
-    """Test connection and check if server has a LLAT configured.
+async def async_hello(host: str, port: int, client_id: str) -> tuple[bool, str]:
+    """Test connection and validate the Slidebolt hello handshake.
 
-    Returns True if the server responds to hello with auth: true.
-    Raises on connection failure.
+    Returns (auth_required, server_id). Raises on connection failure.
     """
     url = f"ws://{host}:{port}/ws"
     session = aiohttp.ClientSession()
     try:
         ws = await session.ws_connect(url, timeout=10)
         try:
-            await ws.send_json({"type": "hello"})
+            await ws.send_json({"type": "hello", CONF_CLIENT_ID: client_id})
             msg = await asyncio.wait_for(ws.receive_json(), timeout=10)
             if msg.get("type") != "hello":
                 raise ConnectionError(f"Unexpected response: {msg}")
-            return bool(msg.get("auth", False))
+            return bool(msg.get("auth", False)), msg.get("server_id", "")
         finally:
             await ws.close()
     finally:
@@ -40,10 +39,11 @@ async def async_hello(host: str, port: int) -> bool:
 class SlideboltBridge:
     """Manages the WebSocket connection to a Slidebolt server."""
 
-    def __init__(self, hass: HomeAssistant, host: str, port: int) -> None:
+    def __init__(self, hass: HomeAssistant, host: str, port: int, client_id: str) -> None:
         self.hass = hass
         self.host = host
         self.port = port
+        self.client_id = client_id
         self.entities: dict[str, dict] = {}
         self._platform_callbacks: dict[str, callable] = {}
         self._ws: aiohttp.ClientWebSocketResponse | None = None
@@ -132,7 +132,7 @@ class SlideboltBridge:
             _LOGGER.info("Connected to %s", url)
 
             # Hello handshake
-            await self._ws.send_json({"type": "hello"})
+            await self._ws.send_json({"type": "hello", CONF_CLIENT_ID: self.client_id})
             hello = await asyncio.wait_for(self._ws.receive_json(), timeout=10)
             if hello.get("type") != "hello" or not hello.get("auth"):
                 _LOGGER.error("Server handshake failed: %s", hello)

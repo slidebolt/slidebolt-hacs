@@ -11,11 +11,18 @@
       "zeroconf_confirm": {
         "title": "Slidebolt Server Discovered",
         "description": "A Slidebolt server was found at {host}:{port}. Do you want to set it up?"
+      },
+      "reconfigure": {
+        "title": "Reconfigure Slidebolt",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
       }
     },
     "error": {
       "cannot_connect": "Cannot connect to Slidebolt server",
-      "no_token": "Slidebolt server does not have an access token configured",
+      "invalid_auth": "Slidebolt pairing failed",
       "unknown": "Unknown error"
     },
     "abort": {

@@ -3,19 +3,33 @@
 from __future__ import annotations
 
 import logging
+import uuid
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .bridge import SlideboltBridge
-from .const import DOMAIN, PLATFORMS
+from .const import CONF_CLIENT_ID, CONF_HOST, CONF_PORT, DOMAIN, PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Slidebolt from a config entry."""
-    bridge = SlideboltBridge(hass, entry.data["host"], entry.data["port"])
+    client_id = entry.data.get(CONF_CLIENT_ID)
+    if not client_id:
+        client_id = str(uuid.uuid4())
+        hass.config_entries.async_update_entry(
+            entry,
+            data={**entry.data, CONF_CLIENT_ID: client_id},
+        )
+
+    bridge = SlideboltBridge(
+        hass,
+        entry.data[CONF_HOST],
+        entry.data[CONF_PORT],
+        client_id,
+    )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = bridge
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

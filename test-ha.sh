@@ -31,12 +31,12 @@ start() {
 
     docker run -d \
         --name "$CONTAINER_NAME" \
-        --network=host \
+        -p "$HA_PORT:$HA_PORT" \
         -v "$SCRIPT_DIR/testconfig:/config" \
         -v "$SCRIPT_DIR/custom_components:/config/custom_components" \
         "$HA_IMAGE" > /dev/null
 
-    log "Container started: http://localhost:8123 (host network)"
+    log "Container started: http://localhost:$HA_PORT"
 }
 
 logs() {

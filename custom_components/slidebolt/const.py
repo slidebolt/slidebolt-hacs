@@ -2,6 +2,9 @@
 
 DOMAIN = "slidebolt"
 DEFAULT_PORT = 39444
+CONF_CLIENT_ID = "client_id"
+CONF_HOST = "host"
+CONF_PORT = "port"
 
 PLATFORMS = [
     "alarm_control_panel",
